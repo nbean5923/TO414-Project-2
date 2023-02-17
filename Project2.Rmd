@@ -5,29 +5,66 @@ date: "2023-02-15"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+# Libraries
+```{r}
+library(class)
 ```
 
-hi -alec
-
-
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+# Load & Clean Data
+```{r}
+tele <- read.csv("tele.csv")
+str(tele)
+summary(tele)
+```
+```{r}
+#A
+tele$X <- NULL
+tele$job <- as.factor(tele$job)
+tele$marital <- as.factor(tele$marital)
+tele$education <- as.factor(tele$education)
+tele$default <- as.factor(tele$default)
+tele$housing <- as.factor(tele$housing)
+tele$loan <- as.factor(tele$loan)
+#B
+tele$contact <- as.factor(tele$contact)
+tele$month <- as.factor(tele$month)
+tele$day_of_week <- as.factor(tele$day_of_week)
+tele$duration <- NULL
+#C
+tele$poutcome <- as.factor(tele$poutcome)
+#D
+tele$y <- as.factor(tele$y)
+```
+```{r}
+#Normalize numeric variables
+normalize <- function(x) {
+  return ( (x - min(x)) / (max(x) - min(x)) )
+}
+tele$age <- normalize(tele$age)
+tele$campaign <- normalize(tele$campaign)
+tele$pdays <- normalize(tele$pdays)
+tele$previous <- normalize(tele$previous)
+tele$emp.var.rate <- normalize(tele$emp.var.rate)
+tele$cons.price.idx <- normalize(tele$cons.price.idx)
+tele$cons.conf.idx <- normalize(tele$cons.conf.idx)
+tele$euribor3m <- normalize(tele$euribor3m)
+tele$nr.employed <- normalize(tele$nr.employed)
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+# Train/Test Data
+```{r}
+n <- nrow(tele)
+idx <- sample(n, .7*n)
+tele.train <- tele[idx,]
+tele.test <- tele[-idx,]
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+# KNN
+```{r}
+#Create dfs of only numeric variables
+tele.knn.train <- tele.train[,c(1,11:13,15:19)]
+tele.knn.test <- tele.test[,c(1,11:13,15:19)]
+
+#Run model
+tele.knn.preds <- knn(tele.knn.train, tele.knn.test, cl = tele.train$y, k = 20)
+```
