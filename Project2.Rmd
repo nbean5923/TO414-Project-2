@@ -8,6 +8,8 @@ output: html_document
 # Libraries
 ```{r}
 library(class)
+library(janitor)
+library(neuralnet)
 ```
 
 # Load & Clean Data
@@ -66,5 +68,26 @@ tele.knn.train <- tele.train[,c(1,11:13,15:19)]
 tele.knn.test <- tele.test[,c(1,11:13,15:19)]
 
 #Run model
-tele.knn.preds <- knn(tele.knn.train, tele.knn.test, cl = tele.train$y, k = 20)
+tele.knn.preds <- knn(tele.knn.train, tele.knn.test, cl = tele.train$y, k = 10)
+```
+
+# ANN
+```{r}
+#Building model matrix for neuralnet
+tele.ann <- as.data.frame(model.matrix(~ .-1 , data = tele))
+tele.ann <- clean_names(tele.ann)
+tele.ann <- as.data.frame(lapply(tele.ann, normalize))
+
+#Rebuild train/test
+tele.ann.train <- tele.ann[idx,]
+tele.ann.test <- tele.ann[-idx,]
+
+nn.model <- neuralnet(yyes ~ ., data = tele.ann.train, hidden = 3, stepmax = 1e+8)
+tele.ann.preds <- ifelse(predict(nn.model, tele.ann.test) > .3, 1, 0)
+```
+
+# Logistic Regression
+```{r}
+tele.logreg <- glm(y~., data=tele.train, family="binomial")
+logreg.preds <- ifelse(predict(tele.logreg, tele.test, type = "response") > .3, 1, 0)
 ```
