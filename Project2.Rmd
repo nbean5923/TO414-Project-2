@@ -1,6 +1,6 @@
 ---
 title: "Project2"
-author: "Noah Bean"
+author: "Noah Bean, Alec Behrendt, Jeff Fong, George Paul"
 date: "2023-02-15"
 output: html_document
 ---
@@ -19,6 +19,7 @@ str(tele)
 summary(tele)
 ```
 ```{r}
+#Remove index and duration variables, factorize categorical variables
 #A
 tele$X <- NULL
 tele$job <- as.factor(tele$job)
@@ -56,6 +57,7 @@ tele$nr.employed <- normalize(tele$nr.employed)
 # Train/Test Data
 ```{r}
 n <- nrow(tele)
+set.seed(0)
 idx <- sample(n, .7*n)
 tele.train <- tele[idx,]
 tele.test <- tele[-idx,]
@@ -68,11 +70,12 @@ tele.knn.train <- tele.train[,c(1,11:13,15:19)]
 tele.knn.test <- tele.test[,c(1,11:13,15:19)]
 
 #Run model
-tele.knn.preds <- ifelse(knn(tele.knn.train, tele.knn.test, cl = tele.train$y, k = 10) == "yes", 1, 0)
+tele.knn.preds <- ifelse(knn(tele.knn.train, tele.knn.test, cl = tele.train$y, k = 5) == "yes", 1, 0)
+table(tele.knn.preds)
 ```
 
 # ANN
-```{r}
+```{r, cache=T}
 #Building model matrix for neuralnet
 tele.ann <- as.data.frame(model.matrix(~ .-1 , data = tele))
 tele.ann <- clean_names(tele.ann)
@@ -83,17 +86,21 @@ tele.ann.train <- tele.ann[idx,]
 tele.ann.test <- tele.ann[-idx,]
 
 nn.model <- neuralnet(yyes ~ ., data = tele.ann.train, hidden = 3, stepmax = 1e+8)
-tele.ann.preds <- ifelse(predict(nn.model, tele.ann.test) > .3, 1, 0)
+#Identify observations with success probability of at least 1/6
+tele.ann.preds <- ifelse(predict(nn.model, tele.ann.test) > 1/6, 1, 0)
 ```
 
 # Logistic Regression
 ```{r}
 tele.logreg <- glm(y~., data=tele.train, family="binomial")
+#Backward step selection to select variables
 tele.logreg2 <- step(tele.logreg, direction="backward")
-logreg.preds <- ifelse(predict(tele.logreg2, tele.test, type = "response") > .3, 1, 0)
+#Identify observations with success probability of at least 1/6
+logreg.preds <- ifelse(predict(tele.logreg2, tele.test, type = "response") > 1/6, 1, 0)
 ```
 
 # Combined Prediction
 ```{r}
+#Majority rule combined prediction
 combined_preds <- ifelse(tele.knn.preds + tele.ann.preds + logreg.preds >= 2, 1, 0)
 ```
