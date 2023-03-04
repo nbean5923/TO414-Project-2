@@ -10,6 +10,7 @@ output: html_document
 library(class)
 library(janitor)
 library(neuralnet)
+library(caret)
 ```
 
 # Load & Clean Data
@@ -87,7 +88,7 @@ tele.ann.test <- tele.ann[-idx,]
 
 nn.model <- neuralnet(yyes ~ ., data = tele.ann.train, hidden = 3, stepmax = 1e+8)
 #Identify observations with success probability of at least 1/6
-tele.ann.preds <- ifelse(predict(nn.model, tele.ann.test) > 1/6, 1, 0)
+tele.ann.preds <- ifelse(as.numeric(predict(nn.model, tele.ann.test)) > 1/6, 1, 0)
 ```
 
 # Logistic Regression
@@ -102,5 +103,32 @@ logreg.preds <- ifelse(predict(tele.logreg2, tele.test, type = "response") > 1/6
 # Combined Prediction
 ```{r}
 #Majority rule combined prediction
-combined_preds <- ifelse(tele.knn.preds + tele.ann.preds + logreg.preds >= 2, 1, 0)
+combined_preds <- ifelse(tele.knn.preds + tele.ann.preds + logreg.preds >= 2, "yes", "no")
+confusionMatrix(as.factor(combined_preds), as.factor(tele.test$y))
 ```
+
+# Prediction Evaluation
+```{r}
+#Calculate cost for each model: $1 for each phone call attempt
+knn.cost <- sum(tele.knn.preds)
+ann.cost <- sum(tele.ann.preds)
+logreg.cost <- sum(logreg.preds)
+combined.cost <- sum(ifelse(combined_preds == "yes",1,0))
+
+#Calculate revenue for each model: $6 for each successful phone call attempt
+knn.revenue <- 6*table(tele.knn.preds, tele.test$y)[2,2]
+ann.revenue <- 6*table(tele.ann.preds, tele.test$y)[2,2]
+logreg.revenue <- 6*table(logreg.preds, tele.test$y)[2,2]
+combined.revenue <- 6*table(combined_preds, tele.test$y)[2,2]
+
+#Calculate profit for each model: Revenue minus cost
+knn.profit <- knn.revenue - knn.cost
+ann.profit <- ann.revenue - ann.cost
+logreg.profit <- logreg.revenue - logreg.cost
+combined.profit <- combined.revenue - combined.cost
+```
+
+KNN Model Profit: 
+ANN Model Profit:
+Logistic Regression Model Profit:
+Combined Model Profit:
