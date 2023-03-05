@@ -87,8 +87,25 @@ tele.ann.train <- tele.ann[idx,]
 tele.ann.test <- tele.ann[-idx,]
 
 nn.model <- neuralnet(yyes ~ ., data = tele.ann.train, hidden = 3, stepmax = 1e+8)
-#Identify observations with success probability of at least 1/6
-tele.ann.preds <- ifelse(as.numeric(predict(nn.model, tele.ann.test)) > 1/6, 1, 0)
+```
+
+## Pick Optimal Threshold for ANN
+```{r}
+#Create vector for different profit amounts
+ann.profit.vector <- seq(30)
+
+#Predict using a threshold of i / 100 for i of 1 to 30, record profit for each i
+for(i in seq(30)){
+tele.ann.preds <- ifelse(as.numeric(predict(nn.model, tele.ann.test)) > i/100, 1, 0)
+ann.cost <- sum(tele.ann.preds)
+ann.revenue <- 6*table(tele.ann.preds, tele.test$y)[2,2]
+ann.profit.vector[i] <- ann.revenue - ann.cost
+}
+
+#Pick the threshold that maximizes test profit
+best <- which.max(ann.profit.vector) / 100
+#Final ANN predictions use this optimized amount
+tele.ann.preds <- ifelse(as.numeric(predict(nn.model, tele.ann.test)) > best, 1, 0)
 ```
 
 # Logistic Regression
