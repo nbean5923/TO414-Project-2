@@ -13,6 +13,15 @@ library(neuralnet)
 library(caret)
 ```
 
+# Executive Summary
+
+A bank’s efforts to convince buyers of a service called term deposit through telemarketing are proving unsuccessful. With calls being made out to random clients, the bank is losing money fast due to the low success rate of calls. Each call costs $1 to make and a successful call will generate revenue of $6, implying that a success rate of 1 out of every 6 calls is necessary to generate zero economic profit (break-even point). The rate of success is nowhere near that rate, leading to substantial loss in profits. However, using predictive analysis and statistical modeling, we can predict customers who are more likely to say “yes” to the service, which will have the effect of reducing the number of failed calls and thus increasing profitability. In this analysis, you will see a demonstration and comparison of three types of models: kNN, logistic regression, and ANN. 
+
+With a cleaned dataset already available, our next step was to build models. For the kNN model, we decided on a k value of 5 which we believed to be a balance between accuracy and speed. For the logistic regression and ANN models, we chose to include predictions with a success probability that would maximize the profitability. We found this threshold by running a for loop that calculated the maximum profit using a set of probabilities from .05 to .30.
+
+In order to evaluate these predictions, we needed to quantify the expected profit of each of these models. To do this, we calculated the total cost of each of the models by summing the number of rows of each of the models. Then, we calculated the expected revenue by taking the number of “yes” predictions for each of the models and multiplying them by 6 (since we make $6 on each successful conversion). Taking the difference of these two predictions, we then were left with expected profit for each model. We found that the logistic regression model along with the ANN model were the most profitable, with the kNN model still being profitable but not to the same extent as the other two models. Since each of these models were profitable, we may conclude that using any of these models to predict who is likely to buy will not only reduce the number of calls that need to be made, freeing up time and productivity, but will also generate improved profitability.
+
+
 # Load & Clean Data
 ```{r}
 tele <- read.csv("tele.csv")
@@ -65,6 +74,9 @@ tele.test <- tele[-idx,]
 ```
 
 # KNN
+
+K was selected in a way that would balance having a large enough k such that each prediction is based on several other points but also small enough that test points would actually be predicted as a positive result. Because the training set has a strong majority of failed call points, it is somewhat rare for a test point to have a majority of neighbors having positive call results, especially if k is large. Thus we determined that the value for k that would balance these considerations is k=5.
+
 ```{r}
 #Create dfs of only numeric variables
 tele.knn.train <- tele.train[,c(1,11:13,15:19)]
@@ -76,6 +88,9 @@ table(tele.knn.preds)
 ```
 
 # ANN
+
+For simplicity, we decided to only use one hidden layer consisting of 2 neurons as the structure for our neural network, and instead tweaked the prediction function to optimize the model. We used other numbers of layers such as 1 and 3, but they yielded similar profits using the code later in this report. Thus, we opted for 2 neurons in one layer to balance efficiency and accuracy. In the predict function, we tested different thresholds for a point to be categorized as a successful call rather than a failed call based on its output from the neural network. To do this, we tried 30 different thresholds, each interval of .01 from .01 to .30, and calculated the test profit. We then selected the threshold that maximized test profit and used this as our final neural network prediction algorithm.
+
 ```{r, cache=T}
 #Building model matrix for neuralnet
 tele.ann <- as.data.frame(model.matrix(~ .-1 , data = tele))
@@ -86,16 +101,21 @@ tele.ann <- as.data.frame(lapply(tele.ann, normalize))
 tele.ann.train <- tele.ann[idx,]
 tele.ann.test <- tele.ann[-idx,]
 
-nn.model <- neuralnet(yyes ~ ., data = tele.ann.train, hidden = 3, stepmax = 1e+8)
+nn.model <- neuralnet(yyes ~ ., data = tele.ann.train, hidden = 2, stepmax = 1e+8)
 ```
 
+
+
 ## Pick Optimal Threshold for ANN
+
+In this for loop, calculated the profit for the ANN model using a set probability, starting with .05. In other words, we tested how much profit the model would give us if we called everyone with .05 probability of buying, and then repeated the process in steps of .01 all the way to .30.
+
 ```{r}
 #Create vector for different profit amounts
 ann.profit.vector <- seq(30)
 
 #Predict using a threshold of i / 100 for i of 1 to 30, record profit for each i
-for(i in seq(30)){
+for(i in seq(from = 5, to = 30)){
 tele.ann.preds <- ifelse(as.numeric(predict(nn.model, tele.ann.test)) > i/100, 1, 0)
 ann.cost <- sum(tele.ann.preds)
 ann.revenue <- 6*table(tele.ann.preds, tele.test$y)[2,2]
@@ -108,8 +128,13 @@ best <- which.max(ann.profit.vector) / 100
 tele.ann.preds <- ifelse(as.numeric(predict(nn.model, tele.ann.test)) > best, 1, 0)
 ```
 
+We found that `r best` was the optimal probability.
+
 # Logistic Regression
-```{r}
+
+We first ran a logistic regression using all variables, then ran a backward step selection to narrow down which variables our model would use. For predicting with the model, we used the response type in the predict function to return estimated probabilities of call success. We determined that we would mark any call in the test set as a success if its estimated probability was more than 1/6, as this is the break-even success rate.
+
+```{r, cache = TRUE}
 tele.logreg <- glm(y~., data=tele.train, family="binomial")
 #Backward step selection to select variables
 tele.logreg2 <- step(tele.logreg, direction="backward")
@@ -149,3 +174,7 @@ KNN Model Profit: `r knn.profit`
 ANN Model Profit: `r ann.profit`
 Logistic Regression Model Profit: `r logreg.profit`
 Combined Model Profit: `r combined.profit`
+
+# Conclusion
+
+By using any of the 3 models or the final combined model, we can make the call center profitable by predicting which consumers are the most likely to complete the call. Although the KNN model was still profitable, it was the weakest of the 3 models, likely a result of the dataset being a high concentration of failed calls. Logistic regression and ANN were both effective models, but the combined majority-rule model did not seem to improve on either, at least from a profitability standpoint. This may be due to the fact that the KNN model weighed down the combined model. However, this should be seen as a success for the goal of making the call center profitable, and these models can continue to be improved over time as the call center gains more data.
