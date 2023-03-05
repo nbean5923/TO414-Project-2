@@ -128,7 +128,7 @@ logreg.profit <- logreg.revenue - logreg.cost
 combined.profit <- combined.revenue - combined.cost
 ```
 
-KNN Model Profit: 
-ANN Model Profit:
-Logistic Regression Model Profit:
-Combined Model Profit:
+KNN Model Profit: `r knn.profit`
+ANN Model Profit: `r ann.profit`
+Logistic Regression Model Profit: `r logreg.profit`
+Combined Model Profit: `r combined.profit`
